@@ -59,7 +59,7 @@
   .cell .ovr{position:absolute;top:8px;left:8px;font-size:9px;color:var(--accent);z-index:2}
   .cell .progress{position:absolute;left:0;right:0;bottom:0;height:5px;background:rgba(255,255,255,.04)}
   .cell .progress .fill{height:100%;transition:width .4s ease}
-  .cell .tint{position:absolute;inset:0;opacity:.13;z-index:0}
+  .cell .tint{position:absolute;inset:0;opacity:.2;z-index:0}
   .cell .gcount{margin-top:auto;font-family:'JetBrains Mono';font-size:10px;color:var(--faint);position:relative;z-index:2}
   .legend{display:flex;gap:18px;margin-top:20px;flex-wrap:wrap;align-items:center}
   .legend span{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dim)}
@@ -437,12 +437,10 @@ function renderCalendar(){
     const hasOverride=db.goals.some(g=>g.overrides&&g.overrides[weekStart(ds)]);
     let inner=`<span class="num">${day}</span>`;
     if(hasOverride)inner+=`<span class="ovr">◆</span>`;
-    if(total>0&&phase!=='future')inner+=`<span class="mini">${done}/${total}</span>`;
     if(phase==='graded'){
       const c=done===0?'var(--red)':ratioColor(ratio);
       const w=done===0?100:Math.max(8,ratio*100);
       inner+=`<span class="tint" style="background:${c}"></span>`;
-      inner+=`<span class="gcount">${(ratio*100).toFixed(0)}%</span>`;
       inner+=`<span class="progress"><span class="fill" style="width:${w}%;background:${c}"></span></span>`;
     }else if(phase==='future'&&total>0){
       inner+=`<div style="margin-top:auto"><i class="status-dot" style="background:var(--faint)"></i></div>`;
