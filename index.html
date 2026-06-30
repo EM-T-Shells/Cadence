@@ -132,6 +132,13 @@
   .macro-row .ml .mv{font-family:'JetBrains Mono';color:var(--dim)}
   .macro-track{height:8px;background:var(--surface-3);border-radius:5px;overflow:hidden}
   .macro-track .mf{height:100%;border-radius:5px;transition:width .5s ease}
+  .avg-block{border:1px solid var(--border);background:var(--surface-2);border-radius:12px;padding:14px;margin-bottom:10px}
+  .avg-block:last-child{margin-bottom:0}
+  .avg-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+  .avg-label{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--dim)}
+  .avg-cal{font-family:'JetBrains Mono';font-size:22px;font-weight:700;color:var(--accent)}
+  .avg-block .macro-chips{margin:10px 0 6px}
+  .avg-note{font-size:12px;color:var(--faint)}
   input[type=date]{-webkit-appearance:none;appearance:none;text-align:left}
   input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
   input[type=date]::-webkit-calendar-picker-indicator{opacity:.55;filter:invert(.7);cursor:pointer}
@@ -392,6 +399,11 @@
       <h2>By goal</h2>
       <p class="sub">Completion rate per goal.</p>
       <div id="per-goal"></div>
+    </div>
+    <div class="card">
+      <h2>Macro averages</h2>
+      <p class="sub">Average intake from your logged meals.</p>
+      <div id="macro-averages"></div>
     </div>
     <div class="card">
       <h2>Weight progress</h2>
@@ -974,6 +986,32 @@ function currentStreak(){
   return streak;
 }
 function renderStreakBanner(){const s=currentStreak();document.getElementById('streak-banner').textContent=s>0?`🔥 ${s}-day perfect streak`:'';}
+function avgOf(list){const t=blankTotals();list.forEach(x=>MK.forEach(k=>t[k]+=num(x[k])));MK.forEach(k=>t[k]=t[k]/list.length);return t;}
+function macroAverages(){
+  const dates=Object.keys(db.meals).filter(d=>db.meals[d]&&db.meals[d].length);
+  if(dates.length===0)return null;
+  const dayTotals={};dates.forEach(d=>dayTotals[d]=sumTotals(db.meals[d]));
+  const weeks={},months={};
+  dates.forEach(d=>{
+    const w=weekStart(d);if(!weeks[w])weeks[w]=blankTotals();MK.forEach(k=>weeks[w][k]+=dayTotals[d][k]);
+    const m=d.slice(0,7);if(!months[m])months[m]=blankTotals();MK.forEach(k=>months[m][k]+=dayTotals[d][k]);
+  });
+  return {
+    day:{v:avgOf(Object.values(dayTotals)),n:dates.length,unit:'logged day'},
+    week:{v:avgOf(Object.values(weeks)),n:Object.keys(weeks).length,unit:'week'},
+    month:{v:avgOf(Object.values(months)),n:Object.keys(months).length,unit:'month'}
+  };
+}
+function renderMacroAverages(){
+  const box=document.getElementById('macro-averages');
+  const a=macroAverages();
+  if(!a){box.innerHTML='<div class="empty-note">Log meals in the Food tab to see averages.</div>';return;}
+  const block=(label,d)=>{const v=d.v;return `<div class="avg-block">
+    <div class="avg-head"><span class="avg-label">${label}</span><span class="avg-cal">${Math.round(v.calories).toLocaleString()} kcal</span></div>
+    <div class="macro-chips"><span class="chip">P <b>${Math.round(v.protein)}</b>g</span><span class="chip">C <b>${Math.round(v.carbs)}</b>g</span><span class="chip">F <b>${Math.round(v.fat)}</b>g</span>${v.fiber?`<span class="chip">Fiber <b>${Math.round(v.fiber)}</b>g</span>`:''}</div>
+    <div class="avg-note">across ${d.n} ${d.unit}${d.n===1?'':'s'}</div></div>`;};
+  box.innerHTML=block('Per day',a.day)+block('Per week',a.week)+block('Per month',a.month);
+}
 function renderAnalytics(){
   const c=completionData();const cs=document.getElementById('completion-stats');
   const rateCls=c.rate>=.8?'good':c.rate>=.5?'warn':'bad';
@@ -990,6 +1028,7 @@ function renderAnalytics(){
     const r=t?dn/t:0;
     return `<div class="bar-row"><span class="bl" title="${esc(g.name)}">${esc(g.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${(r*100).toFixed(0)}%;background:${ratioColor(r)}"></div></div><span class="bv">${(r*100).toFixed(0)}%</span></div>`;
   }).join('');
+  renderMacroAverages();
   renderWeightStats();
 }
 function renderWeightStats(){
