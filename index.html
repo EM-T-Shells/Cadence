@@ -139,6 +139,35 @@
   .avg-cal{font-family:'JetBrains Mono';font-size:22px;font-weight:700;color:var(--accent)}
   .avg-block .macro-chips{margin:10px 0 6px}
   .avg-note{font-size:12px;color:var(--faint)}
+  /* form (average color) swatches in header */
+  .form-row{display:inline-flex;gap:12px;align-items:center}
+  .fdot-wrap{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--faint);font-family:'JetBrains Mono'}
+  .fdot{width:11px;height:11px;border-radius:50%;display:inline-block;box-shadow:0 0 6px rgba(0,0,0,.3)}
+  /* analytics completion form strip */
+  .form-block{margin-top:18px;border-top:1px solid var(--border);padding-top:16px}
+  .form-block-label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin-bottom:12px}
+  .form-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .form-cell{display:flex;align-items:center;gap:9px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:11px}
+  .form-swatch{width:26px;height:26px;border-radius:7px;flex:0 0 auto}
+  .form-lbl{font-size:12px;color:var(--dim);font-family:'JetBrains Mono'}
+  .form-pct{font-size:15px;font-weight:700;font-family:'JetBrains Mono'}
+  @media(max-width:520px){.form-strip{grid-template-columns:repeat(2,1fr)}}
+  /* water */
+  .water-head{display:flex;align-items:baseline;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+  .water-amt{font-family:'JetBrains Mono';font-size:26px;font-weight:700;color:#4ea8de}
+  .water-amt small{font-size:14px;color:var(--dim)}
+  .water-goal-lbl{font-size:13px;color:var(--dim)}
+  .water-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  /* weekly goals */
+  .weekly-item{display:flex;align-items:center;gap:12px;padding:13px 0;border-top:1px solid var(--border)}
+  .weekly-item:first-child{border-top:0}
+  .wk-name{flex:1;min-width:0}
+  .wk-name .wk-sub{font-size:12px;color:var(--faint);font-family:'JetBrains Mono';margin-top:2px}
+  .wk-done{color:var(--green)}
+  .wk-counter{display:flex;align-items:center;gap:8px}
+  .wk-counter button{width:32px;height:32px;border-radius:9px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);cursor:pointer;font-size:17px;display:grid;place-items:center;transition:.15s}
+  .wk-counter button:hover{border-color:var(--accent)}
+  .wk-count{font-family:'JetBrains Mono';font-size:15px;min-width:28px;text-align:center}
   input[type=date]{-webkit-appearance:none;appearance:none;text-align:left}
   input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
   input[type=date]::-webkit-calendar-picker-indicator{opacity:.55;filter:invert(.7);cursor:pointer}
@@ -226,6 +255,7 @@
       <button data-tab="food">Food</button>
       <button data-tab="weight">Weight</button>
       <button data-tab="analytics">Analytics</button>
+      <button data-tab="notes">Notes</button>
       <button data-tab="settings" aria-label="Settings">⚙</button>
     </nav>
   </header>
@@ -252,6 +282,11 @@
         <span><span style="color:var(--accent)">◆</span> Week customized</span>
       </div>
     </div>
+    <div class="card hidden" id="weekly-card">
+      <h2>This week</h2>
+      <p class="sub">Weekly targets — complete anytime before the week ends.</p>
+      <div id="weekly-list"></div>
+    </div>
   </section>
 
   <!-- GOALS -->
@@ -271,12 +306,17 @@
             <option value="daily">Daily</option>
             <option value="weekly">Weekly (one day)</option>
             <option value="custom">Custom days</option>
+            <option value="weeklyN">Weekly target (any day)</option>
             <option value="monthly">Monthly</option>
           </select>
         </div>
         <div class="field" id="dom-field" style="display:none">
           <label>Day of month</label>
           <input id="g-dom" type="number" min="1" max="31" value="1">
+        </div>
+        <div class="field" id="wk-target-field" style="display:none">
+          <label>Times / week</label>
+          <input id="g-wktarget" type="number" min="1" max="21" value="1">
         </div>
       </div>
       <div class="field" id="days-field" style="display:none">
@@ -352,6 +392,18 @@
     </div>
 
     <div class="card">
+      <h2>Water</h2>
+      <p class="sub">Tracked for the date selected above.</p>
+      <div id="water-box"></div>
+      <div class="water-actions" id="water-actions"></div>
+      <div class="row" style="margin-top:16px;flex-wrap:wrap">
+        <div class="field" style="margin-bottom:0;min-width:120px"><label>Daily goal</label><input id="water-goal" type="number" placeholder="100"></div>
+        <div class="field" style="margin-bottom:0;min-width:120px"><label>Unit</label><select id="water-unit"><option value="oz">oz</option><option value="ml">ml</option><option value="cup">cups</option></select></div>
+      </div>
+      <button class="btn ghost sm" id="save-water-goal" style="margin-top:12px">Save water goal</button>
+    </div>
+
+    <div class="card">
       <h2>Daily targets</h2>
       <p class="sub">Optional — sets the progress bars above. Leave blank to skip.</p>
       <div class="row" style="margin-bottom:14px;flex-wrap:wrap">
@@ -394,6 +446,10 @@
       <h2>Goal completion</h2>
       <p class="sub">Across every scheduled goal-day up to today.</p>
       <div class="stat-grid" id="completion-stats"></div>
+      <div class="form-block">
+        <div class="form-block-label">Average completion</div>
+        <div class="form-strip" id="form-strip"></div>
+      </div>
     </div>
     <div class="card">
       <h2>By goal</h2>
@@ -428,6 +484,16 @@
       </div>
       <div class="form-actions"><button class="btn" id="save-ai">Save key</button><span id="ai-status" class="f-status"></span></div>
       <p class="saturday-note" style="margin-top:14px">Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--accent)">aistudio.google.com/apikey</a> — no billing or credit card needed. Your key is stored only in this browser, never uploaded or saved to the site.</p>
+    </div>
+  </section>
+
+  <!-- NOTES -->
+  <section class="view" id="view-notes">
+    <div class="card">
+      <h2>Notes</h2>
+      <p class="sub">A free space for anything — auto-saves as you type.</p>
+      <textarea id="notes-area" rows="16" placeholder="Jot down anything… ideas, reminders, reflections."></textarea>
+      <p class="saturday-note" id="notes-saved" style="margin-top:8px;min-height:16px"></p>
     </div>
   </section>
 
@@ -476,6 +542,11 @@ if(!db.meals)db.meals={};
 if(!db.ai)db.ai={key:'',model:'gemini-2.5-flash'};
 if(db.ai.model==='gemini-2.0-flash')db.ai.model='gemini-2.5-flash';
 if(db.macroGoals===undefined)db.macroGoals=null;
+if(!db.water)db.water={};
+if(db.waterGoal===undefined)db.waterGoal=null;
+if(!db.waterUnit)db.waterUnit='oz';
+if(!db.weekly)db.weekly={};
+if(db.notes===undefined)db.notes='';
 function persist(){store.write(KEY,db);flash();}
 
 /* ---------- date helpers ---------- */
@@ -508,6 +579,7 @@ function scheduledOn(goal,dateStr){
   if(dateStr<goal.createdAt)return false;
   const seg=effectiveSegment(goal,dateStr);
   if(!seg)return false;
+  if(seg.type==='weeklyN')return false;
   if(seg.type==='monthly')return parse(dateStr).getDate()===seg.dom;
   const days=effectiveDays(goal,dateStr);
   return days?days.includes(parse(dateStr).getDay()):false;
@@ -536,6 +608,7 @@ document.querySelectorAll('nav.tabs button').forEach(b=>{
     if(b.dataset.tab==='todo')renderTodos();
     if(b.dataset.tab==='food')renderFood();
     if(b.dataset.tab==='settings')renderSettings();
+    if(b.dataset.tab==='notes')renderNotes();
     if(b.dataset.tab==='calendar')renderCalendar();
   };
 });
@@ -571,6 +644,7 @@ function renderCalendar(){
     grid.appendChild(cell);
   }
   renderStreakBanner();
+  renderWeeklyCard();
 }
 document.getElementById('prev').onclick=()=>{viewM--;if(viewM<0){viewM=11;viewY--;}renderCalendar();};
 document.getElementById('next').onclick=()=>{viewM++;if(viewM>11){viewM=0;viewY++;}renderCalendar();};
@@ -661,6 +735,7 @@ function refreshTypeUI(){
   const t=typeSel.value;
   document.getElementById('days-field').style.display=(t==='weekly'||t==='custom')?'block':'none';
   document.getElementById('dom-field').style.display=(t==='monthly')?'block':'none';
+  document.getElementById('wk-target-field').style.display=(t==='weeklyN')?'block':'none';
   document.getElementById('days-label').textContent=t==='weekly'?'Pick a day':'Pick days';
 }
 typeSel.onchange=()=>{pickedDays=[];document.querySelectorAll('#days-pick button').forEach(b=>b.classList.remove('on'));refreshTypeUI();};
@@ -675,6 +750,7 @@ function buildSegment(){
   const t=typeSel.value;const seg={from:todayIso,type:t,days:[],dom:1};
   if(t==='weekly'||t==='custom'){if(pickedDays.length===0){alert('Pick at least one day.');return null;}seg.days=[...pickedDays].sort((a,b)=>a-b);}
   if(t==='monthly')seg.dom=Math.min(31,Math.max(1,+document.getElementById('g-dom').value||1));
+  if(t==='weeklyN')seg.target=Math.min(21,Math.max(1,+document.getElementById('g-wktarget').value||1));
   return seg;
 }
 document.getElementById('add-goal').onclick=()=>{
@@ -697,7 +773,7 @@ document.getElementById('cancel-edit').onclick=()=>{exitEdit();};
 function resetForm(){
   document.getElementById('g-name').value='';pickedDays=[];
   document.querySelectorAll('#days-pick button').forEach(b=>b.classList.remove('on'));
-  typeSel.value='daily';document.getElementById('g-dom').value=1;refreshTypeUI();
+  typeSel.value='daily';document.getElementById('g-dom').value=1;document.getElementById('g-wktarget').value=1;refreshTypeUI();
 }
 function exitEdit(){
   editingId=null;
@@ -718,6 +794,7 @@ function startEdit(id){
   pickedDays=[...(seg.days||[])];
   document.querySelectorAll('#days-pick button').forEach(b=>b.classList.toggle('on',pickedDays.includes(+b.dataset.d)));
   document.getElementById('g-dom').value=seg.dom||1;
+  document.getElementById('g-wktarget').value=seg.target||1;
   document.getElementById('goal-form-title').textContent='Edit goal';
   document.getElementById('add-goal').textContent='Save changes';
   document.getElementById('editing-flag').textContent='Editing “'+g.name+'” — completion history is preserved.';
@@ -729,6 +806,7 @@ function startEdit(id){
 }
 function scheduleLabel(g,onDate){
   const seg=onDate?(effectiveSegment(g,onDate)||latestSegment(g)):latestSegment(g);
+  if(seg.type==='weeklyN')return (seg.target||1)+'×/week';
   if(seg.type==='daily')return 'Daily';
   if(seg.type==='monthly')return 'Day '+seg.dom;
   const days=onDate?(effectiveDays(g,onDate)||seg.days):seg.days;
@@ -918,19 +996,52 @@ function renderFood(){
   const g=db.macroGoals;
   document.getElementById('m-cal').value=g?g.calories:'';document.getElementById('m-pro').value=g?g.protein:'';
   document.getElementById('m-carb').value=g?g.carbs:'';document.getElementById('m-fat').value=g?g.fat:'';
-  renderDay();renderPreview();
+  renderDay();renderWater();renderPreview();
 }
+function waterIncs(){return db.waterUnit==='ml'?[250,500]:db.waterUnit==='cup'?[1,2]:[8,16];}
+function renderWater(){
+  const amt=db.water[fDate]||0, goal=db.waterGoal, u=db.waterUnit;
+  const pct=goal>0?Math.min(100,amt/goal*100):0;
+  document.getElementById('water-box').innerHTML=
+    `<div class="water-head"><span class="water-amt">${amt} <small>${u}</small></span>${goal?`<span class="water-goal-lbl">of ${goal} ${u} · ${Math.round(pct)}%</span>`:''}</div>`+
+    (goal?`<div class="macro-track" style="height:10px"><div class="mf" style="width:${pct}%;background:#4ea8de"></div></div>`:'');
+  const incs=waterIncs();
+  document.getElementById('water-actions').innerHTML=
+    incs.map(n=>`<button class="btn ghost sm wbtn" data-n="${n}">+${n}</button>`).join('')+
+    `<button class="btn ghost sm wbtn" data-n="-${incs[0]}">−${incs[0]}</button>`+
+    `<button class="btn ghost sm" id="water-reset">Reset</button>`;
+  document.querySelectorAll('.wbtn').forEach(b=>b.onclick=()=>{
+    const v=Math.max(0,(db.water[fDate]||0)+Number(b.dataset.n));
+    if(v===0)delete db.water[fDate];else db.water[fDate]=v;persist();renderWater();
+  });
+  document.getElementById('water-reset').onclick=()=>{delete db.water[fDate];persist();renderWater();};
+  document.getElementById('water-goal').value=goal||'';
+  document.getElementById('water-unit').value=u;
+}
+document.getElementById('save-water-goal').onclick=()=>{
+  db.waterUnit=document.getElementById('water-unit').value;
+  const g=num(document.getElementById('water-goal').value);db.waterGoal=g>0?g:null;
+  persist();renderWater();
+};
 function renderSettings(){
   document.getElementById('ai-key').value=db.ai.key||'';
   document.getElementById('ai-model').value=db.ai.model||'gemini-2.5-flash';
   document.getElementById('ai-status').textContent='';
 }
-document.getElementById('f-date').onchange=()=>{fDate=document.getElementById('f-date').value||todayIso;lastPreview=null;renderPreview();renderDay();};
+document.getElementById('f-date').onchange=()=>{fDate=document.getElementById('f-date').value||todayIso;lastPreview=null;renderPreview();renderDay();renderWater();};
 document.getElementById('save-macros').onclick=()=>{
   const c=num(document.getElementById('m-cal').value),p=num(document.getElementById('m-pro').value),cb=num(document.getElementById('m-carb').value),f=num(document.getElementById('m-fat').value);
   db.macroGoals=(c||p||cb||f)?{calories:c,protein:p,carbs:cb,fat:f}:null;persist();renderDay();
 };
 document.getElementById('save-ai').onclick=()=>{db.ai.key=document.getElementById('ai-key').value.trim();db.ai.model=(document.getElementById('ai-model').value.trim()||'gemini-2.5-flash');persist();const s=document.getElementById('ai-status');s.className='f-status';s.textContent='Saved ✓';};
+
+/* ---------- notes ---------- */
+function renderNotes(){document.getElementById('notes-area').value=db.notes||'';document.getElementById('notes-saved').textContent='';}
+let notesT;
+document.getElementById('notes-area').addEventListener('input',e=>{
+  db.notes=e.target.value;clearTimeout(notesT);
+  notesT=setTimeout(()=>{store.write(KEY,db);const s=document.getElementById('notes-saved');s.textContent='Saved ✓';setTimeout(()=>{s.textContent='';},1200);},500);
+});
 
 /* ---------- weight ---------- */
 function recentSaturday(){const d=new Date(today);const diff=(d.getDay()-6+7)%7;return iso(addDays(d,-diff));}
@@ -985,7 +1096,51 @@ function currentStreak(){
   }
   return streak;
 }
-function renderStreakBanner(){const s=currentStreak();document.getElementById('streak-banner').textContent=s>0?`🔥 ${s}-day perfect streak`:'';}
+function avgRatioOver(days){
+  let sum=0,n=0;
+  for(let i=0;i<days;i++){const ds=iso(addDays(today,-i));const st=dayStats(ds);if(st.total>0){sum+=st.ratio;n++;}}
+  return n?{avg:sum/n,n}:null;
+}
+const FORM_WINDOWS=[['7d',7],['1mo',30],['6mo',182],['1yr',365]];
+function renderStreakBanner(){
+  const el=document.getElementById('streak-banner');
+  const parts=FORM_WINDOWS.map(([lbl,d])=>{
+    const r=avgRatioOver(d);
+    const color=r?ratioColor(r.avg):'var(--surface-3)';
+    return `<span class="fdot-wrap"><span class="fdot" style="background:${color}"></span>${lbl}</span>`;
+  });
+  el.innerHTML=`<span class="form-row">${parts.join('')}</span>`;
+}
+function weeklyGoals(){
+  const wkEnd=iso(addDays(parse(weekStart(todayIso)),6));
+  return db.goals.filter(g=>{const s=latestSegment(g);return s&&s.type==='weeklyN'&&g.createdAt<=wkEnd;});
+}
+function renderWeeklyCard(){
+  const card=document.getElementById('weekly-card');
+  const list=document.getElementById('weekly-list');
+  const gs=weeklyGoals();
+  if(gs.length===0){card.classList.add('hidden');return;}
+  card.classList.remove('hidden');
+  const wk=weekStart(todayIso);
+  list.innerHTML=gs.map(g=>{
+    const target=latestSegment(g).target||1;
+    const count=db.weekly[g.id+'|'+wk]||0;
+    const done=count>=target;
+    return `<div class="weekly-item">
+      <div class="wk-name"><div>${esc(g.name)}${done?' <span class="wk-done">✓</span>':''}</div><div class="wk-sub">${count}/${target} this week</div></div>
+      <div class="wk-counter"><button data-id="${g.id}" data-d="-1">−</button><span class="wk-count">${count}</span><button data-id="${g.id}" data-d="1">+</button></div>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('.wk-counter button').forEach(b=>{
+    b.onclick=()=>{
+      const g=db.goals.find(x=>x.id===b.dataset.id);const target=latestSegment(g).target||1;
+      const k=g.id+'|'+wk;const cur=db.weekly[k]||0;
+      const next=Math.max(0,Math.min(target,cur+(+b.dataset.d)));
+      if(next===0)delete db.weekly[k];else db.weekly[k]=next;
+      persist();renderWeeklyCard();
+    };
+  });
+}
 function avgOf(list){const t=blankTotals();list.forEach(x=>MK.forEach(k=>t[k]+=num(x[k])));MK.forEach(k=>t[k]=t[k]/list.length);return t;}
 function macroAverages(){
   const dates=Object.keys(db.meals).filter(d=>db.meals[d]&&db.meals[d].length);
@@ -1015,16 +1170,28 @@ function renderMacroAverages(){
 function renderAnalytics(){
   const c=completionData();const cs=document.getElementById('completion-stats');
   const rateCls=c.rate>=.8?'good':c.rate>=.5?'warn':'bad';
+  const formCells=FORM_WINDOWS.map(([lbl,d])=>{
+    const r=avgRatioOver(d);
+    const color=r?ratioColor(r.avg):'var(--surface-3)';
+    const pct=r?Math.round(r.avg*100)+'%':'—';
+    return `<div class="form-cell"><span class="form-swatch" style="background:${color}"></span><div class="form-meta"><div class="form-lbl">${lbl}</div><div class="form-pct">${pct}</div></div></div>`;
+  }).join('');
   cs.innerHTML=`
     <div class="stat"><div class="k">Overall rate</div><div class="v ${rateCls}">${(c.rate*100).toFixed(0)}<small>%</small></div><div class="note">${c.done} of ${c.total} goal-days</div></div>
     <div class="stat"><div class="k">Last 7 days</div><div class="v acc">${c.last7==null?'—':(c.last7*100).toFixed(0)+'%'}</div><div class="note">${c.last7==null?'no goals scheduled':c.d7+' of '+c.t7+' done'}</div></div>
-    <div class="stat"><div class="k">Current streak</div><div class="v">${currentStreak()}<small> days</small></div><div class="note">fully completed days</div></div>
     <div class="stat"><div class="k">Active goals</div><div class="v">${db.goals.length}</div><div class="note">being tracked</div></div>`;
+  const fb=document.getElementById('form-strip');
+  if(fb)fb.innerHTML=formCells;
   const pg=document.getElementById('per-goal');
   if(db.goals.length===0)pg.innerHTML='<div class="empty-note">Add goals to see per-goal stats.</div>';
   else pg.innerHTML=db.goals.map(g=>{
-    let t=0,dn=0;
-    for(let d=parse(g.createdAt);iso(d)<=todayIso;d=addDays(d,1)){const ds=iso(d);if(scheduledOn(g,ds)){t++;if(isDone(g.id,ds))dn++;}}
+    const seg=latestSegment(g);let t=0,dn=0;
+    if(seg.type==='weeklyN'){
+      const target=seg.target||1;const wkNow=weekStart(todayIso);
+      for(let w=parse(weekStart(g.createdAt));iso(w)<=wkNow;w=addDays(w,7)){t++;if((db.weekly[g.id+'|'+iso(w)]||0)>=target)dn++;}
+    }else{
+      for(let d=parse(g.createdAt);iso(d)<=todayIso;d=addDays(d,1)){const ds=iso(d);if(scheduledOn(g,ds)){t++;if(isDone(g.id,ds))dn++;}}
+    }
     const r=t?dn/t:0;
     return `<div class="bar-row"><span class="bl" title="${esc(g.name)}">${esc(g.name)}</span><div class="bar-track"><div class="bar-fill" style="width:${(r*100).toFixed(0)}%;background:${ratioColor(r)}"></div></div><span class="bv">${(r*100).toFixed(0)}%</span></div>`;
   }).join('');
