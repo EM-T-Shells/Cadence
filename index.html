@@ -614,7 +614,7 @@
       </div>
       <div class="field">
         <label>Model</label>
-        <input id="ai-model" placeholder="gemini-2.5-flash">
+        <input id="ai-model" placeholder="gemini-3.5-flash">
       </div>
       <div class="form-actions"><button class="btn" id="save-ai">Save key</button><span id="ai-status" class="f-status"></span></div>
       <p class="hint-note" style="margin-top:14px">Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--accent)">aistudio.google.com/apikey</a> — no billing or credit card needed. Your key is stored only in this browser, never uploaded or saved to the site.</p>
@@ -656,6 +656,8 @@
 <script>
 /* ---------- storage with migration ---------- */
 const KEY='cadence_v2', OLD='cadence_v1', mem={};
+const AI_MODEL='gemini-3.5-flash';
+const AI_MODEL_RETIRED=['gemini-2.0-flash','gemini-2.5-flash'];
 const store={
   read(k){try{const r=localStorage.getItem(k);return r?JSON.parse(r):null;}catch(e){return mem[k]||null;}},
   write(k,d){try{localStorage.setItem(k,JSON.stringify(d));}catch(e){mem[k]=d;}}
@@ -673,8 +675,8 @@ function migrate(){
 let db=store.read(KEY)||migrate()||{goals:[],completions:{},weights:[],goalWeight:null,unit:'lb',todos:[]};
 if(!db.todos)db.todos=[];
 if(!db.meals)db.meals={};
-if(!db.ai)db.ai={key:'',model:'gemini-2.5-flash'};
-if(db.ai.model==='gemini-2.0-flash')db.ai.model='gemini-2.5-flash';
+if(!db.ai)db.ai={key:'',model:AI_MODEL};
+if(AI_MODEL_RETIRED.includes(db.ai.model))db.ai.model=AI_MODEL;
 if(db.macroGoals===undefined)db.macroGoals=null;
 if(!db.water)db.water={};
 if(!db.prs)db.prs=[];
@@ -1077,7 +1079,7 @@ function sumTotals(meals){const t=blankTotals();meals.forEach(m=>MK.forEach(k=>t
 async function analyzeFood(desc,image){
   const key=(db.ai.key||'').trim();
   if(!key)throw new Error('Add your free Gemini key under Settings (⚙) first.');
-  const model=(db.ai.model||'gemini-2.5-flash').trim();
+  const model=(db.ai.model||AI_MODEL).trim();
   let prompt='You are a nutrition estimator. Return ONLY raw JSON (no markdown fences) of the form '+
     '{"items":[{"name":string,"qty":string,"calories":number,"protein":number,"carbs":number,"fat":number,"fiber":number}],'+
     '"totals":{"calories":number,"protein":number,"carbs":number,"fat":number,"fiber":number},'+
@@ -1335,7 +1337,7 @@ document.getElementById('save-water-goal').onclick=()=>{
 };
 function renderSettings(){
   document.getElementById('ai-key').value=db.ai.key||'';
-  document.getElementById('ai-model').value=db.ai.model||'gemini-2.5-flash';
+  document.getElementById('ai-model').value=db.ai.model||AI_MODEL;
   document.getElementById('ai-status').textContent='';
 }
 document.getElementById('f-date').onchange=()=>{fDate=document.getElementById('f-date').value||todayIso;lastPreview=null;renderPreview();renderDay();renderWater();renderMacroWeek();renderMicros();};
@@ -1362,7 +1364,7 @@ document.getElementById('save-macros').onclick=()=>{
   const c=num(document.getElementById('m-cal').value),p=num(document.getElementById('m-pro').value),cb=num(document.getElementById('m-carb').value),f=num(document.getElementById('m-fat').value),fb=num(document.getElementById('m-fib').value);
   db.macroGoals=(c||p||cb||f||fb)?{calories:c,protein:p,carbs:cb,fat:f,fiber:fb}:null;persist();renderDay();renderMacroWeek();
 };
-document.getElementById('save-ai').onclick=()=>{db.ai.key=document.getElementById('ai-key').value.trim();db.ai.model=(document.getElementById('ai-model').value.trim()||'gemini-2.5-flash');persist();const s=document.getElementById('ai-status');s.className='f-status';s.textContent='Saved ✓';};
+document.getElementById('save-ai').onclick=()=>{db.ai.key=document.getElementById('ai-key').value.trim();db.ai.model=(document.getElementById('ai-model').value.trim()||AI_MODEL);persist();const s=document.getElementById('ai-status');s.className='f-status';s.textContent='Saved ✓';};
 
 /* ---------- notes ---------- */
 function renderNotes(){document.getElementById('notes-area').value=db.notes||'';document.getElementById('notes-saved').textContent='';}
