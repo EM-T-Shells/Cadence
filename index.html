@@ -247,28 +247,6 @@
   .save-flash{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface-3);border:1px solid var(--border-bright);color:var(--text);padding:9px 18px;border-radius:30px;font-size:13px;opacity:0;transition:.25s;pointer-events:none;z-index:60}
   .save-flash.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-  /* weekly macro balancing */
-  .mw-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
-  .mw-pills{display:flex;gap:6px;flex-wrap:wrap}
-  .mw-pills button{background:var(--surface-2);border:1px solid var(--border);color:var(--dim);padding:6px 11px;border-radius:999px;cursor:pointer;font-family:'JetBrains Mono';font-size:11px;font-weight:500;transition:.15s}
-  .mw-pills button.on{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
-  .mw-sum{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:14px 0 6px}
-  .mw-sum .big{font-family:'JetBrains Mono';font-size:26px;font-weight:600;letter-spacing:-.02em}
-  .mw-sum .of{font-size:13px;color:var(--faint)}
-  .mw-track{height:7px;background:var(--surface-3);border-radius:99px;overflow:hidden;margin-bottom:6px}
-  .mw-track .mf{height:100%;border-radius:99px;transition:width .25s}
-  .mw-note{font-size:12px;color:var(--faint);margin-bottom:16px;line-height:1.5}
-  .mw-note b{color:var(--accent);font-family:'JetBrains Mono';font-weight:600}
-  .mw-row{display:grid;grid-template-columns:52px 1fr 78px;align-items:center;gap:10px;padding:8px 8px;border-radius:10px;cursor:pointer;transition:.15s}
-  .mw-row:hover{background:var(--surface-2)}
-  .mw-row.is-today{background:var(--accent-dim);box-shadow:inset 0 0 0 1px var(--accent)}
-  .mw-row .mw-d{font-family:'JetBrains Mono';font-size:12px;color:var(--dim)}
-  .mw-row.is-today .mw-d{color:var(--accent)}
-  .mw-row .mw-bar{height:9px;background:var(--surface-3);border-radius:99px;overflow:hidden}
-  .mw-row .mw-bar span{display:block;height:100%;border-radius:99px}
-  .mw-row .mw-v{font-family:'JetBrains Mono';font-size:12px;text-align:right;font-weight:500}
-  .mw-row .mw-v small{display:block;font-size:10px;color:var(--faint);font-weight:400}
-
   /* water slider */
   .wslide{margin-top:16px}
   .wslide-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:8px}
@@ -475,20 +453,16 @@
       <p class="hint-note">Manual entries don’t include micronutrient estimates.</p>
     </div>
 
-    <div class="card" id="mw-card">
-      <div class="mw-head">
-        <div>
-          <h2>This week</h2>
-          <p class="sub" id="mw-range"></p>
-        </div>
-        <div class="mw-pills" id="mw-pills"></div>
-      </div>
-      <div id="mw-body"></div>
-    </div>
-
     <div class="card">
-      <h2 id="f-day-title">Today</h2>
-      <p class="sub">Logged meals and running totals.</p>
+      <div class="cal-head" style="margin-bottom:14px">
+        <div class="month" id="f-day-title">Today</div>
+        <div class="cal-nav">
+          <button class="navbtn" id="f-prev" title="Previous day">‹</button>
+          <button class="navbtn today-btn" id="f-today">Today</button>
+          <button class="navbtn" id="f-next" title="Next day">›</button>
+        </div>
+      </div>
+      <p class="sub" id="f-day-sub">Logged meals and running totals.</p>
       <div id="f-daystate"></div>
       <div id="f-totals"></div>
       <div id="f-meals"></div>
@@ -1098,7 +1072,10 @@ function macroRow(label,val,goal,color){
 }
 function renderDay(){
   renderDayState();
-  document.getElementById('f-day-title').textContent=fDate===todayIso?'Today':prettyDate(fDate);
+  const dayLbl=fDate===todayIso?'Today':fDate===iso(addDays(today,-1))?'Yesterday':fDate===iso(addDays(today,1))?'Tomorrow':prettyDate(fDate);
+  document.getElementById('f-day-title').textContent=dayLbl;
+  const dsub=document.getElementById('f-day-sub');
+  if(dsub)dsub.textContent=(dayLbl===prettyDate(fDate)?'Logged meals and running totals.':prettyDate(fDate));
   const meals=db.meals[fDate]||[];
   const totalsBox=document.getElementById('f-totals');
   const t=sumTotals(meals);const g=db.macroGoals;
@@ -1129,107 +1106,13 @@ function renderDay(){
   });
   mb.querySelectorAll('.mc-del').forEach(b=>b.onclick=()=>{db.meals[fDate]=db.meals[fDate].filter(x=>x.id!==b.dataset.id);if(db.meals[fDate].length===0)delete db.meals[fDate];persist();refreshFoodViews();});
 }
-const RK=['calories','protein','carbs','fat','fiber'];
-const RLABEL={calories:'Cal',protein:'Protein',carbs:'Carbs',fat:'Fat',fiber:'Fiber'};
-const RUNIT={calories:' kcal',protein:'g',carbs:'g',fat:'g',fiber:'g'};
-let mwMacro='calories';
-function macroWeek(){
-  const g=db.macroGoals;
-  if(!g||!RK.some(k=>num(g[k])>0))return null;
-  const wk=weekStart(todayIso);
-  const dates=[];for(let i=0;i<7;i++)dates.push(iso(addDays(parse(wk),i)));
-  const actual={};dates.forEach(d=>actual[d]=sumTotals(db.meals[d]||[]));
-  const budget={},spent={},spentPast={},weekTotal={};
-  RK.forEach(k=>{budget[k]=num(g[k])*7;spent[k]=0;spentPast[k]=0;weekTotal[k]=0;});
-  dates.forEach(d=>RK.forEach(k=>{
-    const v=num(actual[d][k]);
-    weekTotal[k]+=v;
-    if(d<=todayIso)spent[k]+=v;
-    if(d<todayIso)spentPast[k]+=v;
-  }));
-  const nFuture=dates.filter(d=>d>todayIso).length;
-  const todayAllow={},futureAllow={};
-  RK.forEach(k=>{
-    todayAllow[k]=Math.max(0,(budget[k]-spentPast[k])/(nFuture+1));
-    futureAllow[k]=nFuture?Math.max(0,(budget[k]-spent[k])/nFuture):0;
-  });
-  return {wk,dates,actual,budget,spent,weekTotal,todayAllow,futureAllow,nFuture,flat:g};
-}
-function renderMacroWeek(){
-  const body=document.getElementById('mw-body');
-  const range=document.getElementById('mw-range');
-  const pills=document.getElementById('mw-pills');
-  const a=macroWeek();
-  if(!a){
-    range.textContent='';pills.innerHTML='';
-    body.innerHTML='<div class="empty-note">Set macro targets below to turn on weekly balancing.</div>';
-    return;
-  }
-  const wkEnd=a.dates[6];
-  range.textContent=prettyDate(a.wk)+' \u2192 '+prettyDate(wkEnd);
-  if(num(a.flat[mwMacro])<=0)mwMacro=RK.find(k=>num(a.flat[k])>0);
-  pills.innerHTML=RK.filter(k=>num(a.flat[k])>0).map(k=>
-    `<button data-k="${k}" class="${k===mwMacro?'on':''}">${RLABEL[k]}</button>`).join('');
-  pills.querySelectorAll('button').forEach(b=>b.onclick=()=>{mwMacro=b.dataset.k;renderMacroWeek();});
-
-  const k=mwMacro,unit=RUNIT[k],flat=num(a.flat[k]);
-  const used=a.weekTotal[k],budget=a.budget[k],left=budget-used;
-  const pct=budget>0?Math.min(100,(used/budget)*100):0;
-  const barColor=used>budget?'var(--red)':'var(--accent)';
-  const rnd=v=>Math.round(v).toLocaleString();
-
-  const note=a.nFuture>0
-    ? `Remaining ${rnd(Math.max(0,left))}${unit} across ${a.nFuture} day${a.nFuture===1?'':'s'} after today \u2014 <b>${rnd(a.futureAllow[k])}${unit}/day</b>. Baseline is ${rnd(flat)}${unit}.`
-    : `Last day of the week. <b>${rnd(Math.max(0,a.todayAllow[k]-num(a.actual[todayIso][k])))}${unit}</b> left to stay in budget.`;
-
-  const rows=a.dates.map(d=>{
-    const act=num(a.actual[d][k]);
-    const isToday=d===todayIso,isPast=d<todayIso;
-    let val,sub,color,fillVal;
-    if(isPast){
-      val=rnd(act);
-      const delta=act-flat;
-      sub=(delta>=0?'+':'\u2212')+rnd(Math.abs(delta));
-      color=act>flat?'var(--red)':'var(--green)';
-      fillVal=act;
-    }else if(isToday){
-      const allow=a.todayAllow[k],rem=allow-act;
-      val=rnd(act);
-      sub='of '+rnd(allow);
-      color=rem<0?'var(--red)':'var(--accent)';
-      fillVal=act;
-    }else{
-      val=rnd(a.futureAllow[k]);
-      sub='planned';
-      color=a.futureAllow[k]<flat?'var(--amber)':'var(--green)';
-      fillVal=a.futureAllow[k];
-    }
-    const w=flat>0?Math.min(100,(fillVal/flat)*100):0;
-    const dd=parse(d);
-    return `<div class="mw-row ${isToday?'is-today':''}" data-d="${d}">
-      <div class="mw-d">${DOW[dd.getDay()]} ${dd.getDate()}</div>
-      <div class="mw-bar"><span style="width:${w.toFixed(0)}%;background:${color}"></span></div>
-      <div class="mw-v" style="color:${color}">${val}<small>${sub}</small></div>
-    </div>`;
-  }).join('');
-
-  body.innerHTML=`<div class="mw-sum"><span class="big" style="color:${barColor}">${rnd(used)}</span><span class="of">of ${rnd(budget)}${unit} this week</span></div>
-    <div class="mw-track"><div class="mf" style="width:${pct.toFixed(0)}%;background:${barColor}"></div></div>
-    <div class="mw-note">${note}</div>${rows}`;
-
-  body.querySelectorAll('.mw-row').forEach(r=>r.onclick=()=>{
-    fDate=r.dataset.d;
-    document.getElementById('f-date').value=fDate;
-    refreshFoodViews();
-  });
-}
 function renderFood(){
   if(!document.getElementById('f-date').value)document.getElementById('f-date').value=fDate;
   const g=db.macroGoals;
   document.getElementById('m-cal').value=g?g.calories:'';document.getElementById('m-pro').value=g?g.protein:'';
   document.getElementById('m-carb').value=g?g.carbs:'';document.getElementById('m-fat').value=g?g.fat:'';
   document.getElementById('m-fib').value=g&&g.fiber?g.fiber:'';
-  renderMacroWeek();renderDay();renderWater('food');renderPreview();renderMacroPace();renderDayState();
+  renderDay();renderWater('food');renderPreview();renderMacroPace();renderDayState();
 }
 function waterCfg(){
   const u=db.waterUnit;
@@ -1284,7 +1167,16 @@ function renderSettings(){
   document.getElementById('ai-model').value=db.ai.model||AI_MODEL;
   document.getElementById('ai-status').textContent='';
 }
-document.getElementById('f-date').onchange=()=>{fDate=document.getElementById('f-date').value||todayIso;lastPreview=null;renderPreview();renderDay();renderWater('food');renderMacroWeek();};
+function goToDay(ds){
+  fDate=ds;
+  document.getElementById('f-date').value=fDate;
+  lastPreview=null;
+  renderPreview();refreshFoodViews();renderWater('food');
+}
+document.getElementById('f-prev').onclick=()=>goToDay(iso(addDays(parse(fDate),-1)));
+document.getElementById('f-next').onclick=()=>goToDay(iso(addDays(parse(fDate),1)));
+document.getElementById('f-today').onclick=()=>goToDay(todayIso);
+document.getElementById('f-date').onchange=()=>{fDate=document.getElementById('f-date').value||todayIso;lastPreview=null;renderPreview();renderDay();renderWater('food');};
 document.getElementById('mn-add').onclick=()=>{
   const st=document.getElementById('mn-status');st.className='f-status';
   const desc=document.getElementById('mn-desc').value.trim();
@@ -1395,7 +1287,7 @@ function logMeal(src,dateStr){
     totals:Object.assign(blankTotals(),src.totals||{}),createdAt:Date.now()});
 }
 function refreshFoodViews(){
-  renderDay();renderMacroWeek();renderMacroPace();renderTodayFood();
+  renderDay();renderMacroPace();renderTodayFood();
 }
 
 /* ---------- today ---------- */
